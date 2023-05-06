@@ -1,4 +1,4 @@
-package com.example.ble_phone_central.BleDefinition
+package com.example.ble_kit.definition
 
 import java.util.UUID
 

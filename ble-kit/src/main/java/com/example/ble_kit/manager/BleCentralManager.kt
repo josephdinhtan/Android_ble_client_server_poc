@@ -1,9 +1,9 @@
-package com.example.ble_phone_central.manager
+package com.example.ble_kit.manager
 
-import com.example.ble_phone_central.model.BleLifecycleState
+import com.example.ble_kit.model.BleLifecycleState
 import kotlinx.coroutines.flow.SharedFlow
 
-interface BleManager {
+interface BleCentralManager {
     val bleLifecycleState: SharedFlow<BleLifecycleState>
     val bleIndicationData: SharedFlow<ByteArray>
     val wifiDirectServerName: SharedFlow<String>

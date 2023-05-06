@@ -1,4 +1,4 @@
-package com.example.ble_phone_central.service
+package com.example.ble_kit.service
 
 import android.app.Service
 import android.bluetooth.BluetoothDevice
@@ -8,13 +8,12 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
-import com.example.ble_phone_central.Helper.BleScanHelper
-import com.example.ble_phone_central.Helper.GattManager
-import com.example.ble_phone_central.model.BleLifecycleState
+import com.example.ble_kit.model.BleLifecycleState
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import java.lang.Exception
 
-class BleCentralService : Service() {
+internal class BleCentralService : Service() {
 
     private var isScanning = false
     private var mGattManager: GattManager? = null
@@ -39,7 +38,7 @@ class BleCentralService : Service() {
 
     private fun onBleLifecycleStateChange(newState: BleLifecycleState) {
         mBleLifecycleState = newState
-        bleLifecycleStateShareFlow.tryEmit(newState)
+        _bleLifecycleStateShareFlow.tryEmit(newState)
     }
 
     override fun onDestroy() {
@@ -127,7 +126,7 @@ class BleCentralService : Service() {
                 data?.let {
                     val strValue = data.toString(Charsets.UTF_8)
                     Log.d(TAG, "Data got after read: $strValue")
-                    wifiDirectServerNameShareFlow.tryEmit(strValue)
+                    _wifiDirectServerNameShareFlow.tryEmit(strValue)
                 } ?: run {
                     Log.d(TAG, "Invalid data")
                 }
@@ -159,7 +158,7 @@ class BleCentralService : Service() {
                 val data = intent.getByteArrayExtra(EXTRA_RECEIVE_INDICATE_DATA)
                 Log.d(TAG, "Indicate Data: ${data?.toString(Charsets.UTF_8)}")
                 data?.let {
-                    bleIndicationDataShareFlow.tryEmit(data)
+                    _bleIndicationDataShareFlow.tryEmit(data)
                 } ?: run {
                     Log.e(TAG, "Data is NULL")
                 }
@@ -172,58 +171,45 @@ class BleCentralService : Service() {
     companion object {
         private const val TAG = "BleCentralService_Jdt"
 
-        const val BLE_SERVICE_PACKAGE = "com.example.ble_phone_central"
-        const val BLE_SERVICE_CLASS = "com.example.ble_phone_central.service.BleCentralService"
-
-        internal const val ACTION_BLE_SCAN_START = "com.example.ble_phone_central.action.SCAN_START"
-        internal const val ACTION_BLE_STOP = "com.example.ble_phone_central.action.BLE_STOP"
-        internal const val ACTION_BLE_DEVICE_FOUND =
-            "com.example.ble_phone_central.action.BLE_DEVICE_FOUND"
-        internal const val ACTION_GATT_CONNECTED =
-            "com.example.ble_phone_central.action.GATT_CONNECTED"
-        internal const val ACTION_GATT_DISCONNECTED =
-            "com.example.ble_phone_central.action.GATT_DISCONNECTED"
-        internal const val ACTION_GATT_SERVICE_DISCOVERED =
-            "com.example.ble_phone_central.action.GATT_SERVICE_DISCOVERED"
+        internal const val ACTION_BLE_SCAN_START = "action.SCAN_START"
+        internal const val ACTION_BLE_STOP = "action.BLE_STOP"
+        internal const val ACTION_BLE_DEVICE_FOUND = "action.BLE_DEVICE_FOUND"
+        internal const val ACTION_GATT_CONNECTED = "action.GATT_CONNECTED"
+        internal const val ACTION_GATT_DISCONNECTED = "action.GATT_DISCONNECTED"
+        internal const val ACTION_GATT_SERVICE_DISCOVERED = "action.GATT_SERVICE_DISCOVERED"
         internal const val ACTION_GATT_CHAR_REQUEST_SUBSCRIBE =
-            "com.example.ble_phone_central.action.GATT_CHAR_INDICATION_REQUEST_SUBSCRIBE"
+            "action.GATT_CHAR_INDICATION_REQUEST_SUBSCRIBE"
         internal const val ACTION_GATT_CHAR_INDICATION_SUBSCRIBED =
-            "com.example.ble_phone_central.action.GATT_CHAR_INDICATION_SERVICE_SUBSCRIBED"
+            "action.GATT_CHAR_INDICATION_SERVICE_SUBSCRIBED"
         internal const val ACTION_GATT_CHAR_INDICATION_REQUEST_UNSUBSCRIBE =
-            "com.example.ble_phone_central.action.GATT_CHAR_INDICATION_REQUEST_UNSUBSCRIBE"
+            "action.GATT_CHAR_INDICATION_REQUEST_UNSUBSCRIBE"
 
 
-        internal const val ACTION_CHAR_REQUEST_READ =
-            "com.example.ble_phone_central.action.CHAR_REQUEST_READ"
-        internal const val ACTION_CHAR_READ_DONE =
-            "com.example.ble_phone_central.action.CHAR_READ_DONE"
-        internal const val EXTRA_CHAR_READ_DATA =
-            "com.example.ble_phone_central.extra.CHAR_READ_DATA"
+        internal const val ACTION_CHAR_REQUEST_READ = "action.CHAR_REQUEST_READ"
+        internal const val ACTION_CHAR_READ_DONE = "action.CHAR_READ_DONE"
+        internal const val EXTRA_CHAR_READ_DATA = "extra.CHAR_READ_DATA"
 
-        internal const val ACTION_CHAR_REQUEST_WRITE =
-            "com.example.ble_phone_central.action.CHAR_REQUEST_WRITE"
-        internal const val EXTRA_CHAR_REQUEST_WRITE_DATA =
-            "com.example.ble_phone_central.extra.CHAR_REQUEST_WRITE_DATA"
-        internal const val ACTION_CHAR_WRITE_DONE =
-            "com.example.ble_phone_central.action.CHAR_WRITE_DONE"
-        internal const val EXTRA_CHAR_WRITE_ACK =
-            "com.example.ble_phone_central.extra.CHAR_WRITE_ACK"
+        internal const val ACTION_CHAR_REQUEST_WRITE = "action.CHAR_REQUEST_WRITE"
+        internal const val EXTRA_CHAR_REQUEST_WRITE_DATA = "extra.CHAR_REQUEST_WRITE_DATA"
+        internal const val ACTION_CHAR_WRITE_DONE = "action.CHAR_WRITE_DONE"
+        internal const val EXTRA_CHAR_WRITE_ACK = "extra.CHAR_WRITE_ACK"
 
-        internal const val ACTION_RECEIVE_INDICATE =
-            "com.example.ble_phone_central.action.RECEIVE_INDICATE"
-        internal const val EXTRA_RECEIVE_INDICATE_DATA =
-            "com.example.ble_phone_central.extra.RECEIVE_INDICATE_DATA"
+        internal const val ACTION_RECEIVE_INDICATE = "action.RECEIVE_INDICATE"
+        internal const val EXTRA_RECEIVE_INDICATE_DATA = "extra.RECEIVE_INDICATE_DATA"
 
-        internal val bleLifecycleStateShareFlow = MutableSharedFlow<BleLifecycleState>(replay = 1)
-        internal val bleIndicationDataShareFlow = MutableSharedFlow<ByteArray>(replay = 1)
-        internal val wifiDirectServerNameShareFlow = MutableSharedFlow<String>(replay = 1)
+        private val _bleLifecycleStateShareFlow = MutableSharedFlow<BleLifecycleState>(replay = 1)
+        private val _bleIndicationDataShareFlow = MutableSharedFlow<ByteArray>(replay = 1)
+        private val _wifiDirectServerNameShareFlow = MutableSharedFlow<String>(replay = 1)
+        internal val bleLifecycleStateShareFlow = _bleLifecycleStateShareFlow.asSharedFlow()
+        internal val bleIndicationDataShareFlow = _bleIndicationDataShareFlow.asSharedFlow()
+        internal val wifiDirectServerNameShareFlow = _wifiDirectServerNameShareFlow.asSharedFlow()
 
         internal fun <T : Any> sendIntentToServiceClass(
             context: Context, action: String, extraName: String? = null, extraValue: T? = null
         ) {
             val intent = Intent(action).apply {
                 component = ComponentName(
-                    BLE_SERVICE_PACKAGE, BLE_SERVICE_CLASS
+                    context.packageName, BleCentralService::class.java.name
                 )
             }
             extraName?.let {

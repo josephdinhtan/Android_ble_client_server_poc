@@ -15,12 +15,10 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
+import com.example.ble_kit.manager.BleCentralManager
+import com.example.ble_kit.manager.BleCentralManagerImpl
+import com.example.ble_kit.utils.BluetoothUtility
 import com.example.ble_phone_central.databinding.ActivityMainBinding
-import com.example.ble_phone_central.model.BleLifecycleState
-import com.example.ble_phone_central.service.BleCentralService
-import com.example.ble_phone_central.Helper.BluetoothUtility
-import com.example.ble_phone_central.manager.BleManager
-import com.example.ble_phone_central.manager.BleManagerImpl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -32,22 +30,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var activityBinding: ActivityMainBinding
 
-    private val mBleManager: BleManager by lazy {
-        BleManagerImpl(this)
+    private val mBleManager: BleCentralManager by lazy {
+        BleCentralManagerImpl(this)
     }
-
-    private var lifecycleState = BleLifecycleState.Disconnected
-        set(value) {
-            field = value
-            runOnUiThread {
-                activityBinding.textViewLifecycleState.text = "State: ${value.name}"
-                if (value != BleLifecycleState.Connected) {
-                    activityBinding.textViewSubscription.text =
-                        getString(R.string.text_not_subscribed)
-                }
-            }
-        }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
@@ -90,7 +75,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun onTapWrite(view: View) {
-        mBleManager.sendData("Test Command".toByteArray())
+        val data = activityBinding.editTextWriteValue.text.toString()
+        Log.d(TAG, "onTapWrite data: $data")
+        mBleManager.sendData(data.toByteArray())
     }
 
     private fun prepareAndStartBleScan() {
@@ -224,7 +211,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             runOnUiThread {
                 val requestCode = BLUETOOTH_ALL_PERMISSIONS_REQUEST_CODE
-
                 // set permission result handler
                 permissionResultHandlers[requestCode] = { _ /*permissions*/, grantResults ->
                     val isSuccess = grantResults.all { it == PackageManager.PERMISSION_GRANTED }

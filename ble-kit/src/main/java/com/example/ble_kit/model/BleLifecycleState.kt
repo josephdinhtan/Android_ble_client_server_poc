@@ -1,7 +1,8 @@
-package com.example.ble_phone_central.model
+package com.example.ble_kit.model
 
 enum class BleLifecycleState {
-    none,
+    None,
+    Advertising,
     Scanning,
     Connecting,
     Connected,

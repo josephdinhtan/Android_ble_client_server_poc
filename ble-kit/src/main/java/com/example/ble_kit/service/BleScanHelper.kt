@@ -1,4 +1,4 @@
-package com.example.ble_phone_central.Helper
+package com.example.ble_kit.service
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -13,11 +13,11 @@ import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
 import androidx.core.app.ActivityCompat
-import com.example.ble_phone_central.BleDefinition.UUIDTable
-import com.example.ble_phone_central.model.BleLifecycleState
-import com.example.ble_phone_central.service.BleCentralService
+import com.example.ble_kit.definition.UUIDTable
+import com.example.ble_kit.model.BleLifecycleState
+import com.example.ble_kit.utils.BluetoothUtility
 
-class BleScanHelper(
+internal class BleScanHelper(
     private val context: Context,
     private val bleLifecycleStateChange: (BleLifecycleState) -> Unit
 ) {

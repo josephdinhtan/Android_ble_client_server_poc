@@ -1,5 +1,6 @@
-package com.example.ble_phone_central.Helper
+package com.example.ble_kit.service
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
@@ -10,12 +11,11 @@ import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.os.Build
 import android.util.Log
-import com.example.ble_phone_central.BleDefinition.UUIDTable
-import com.example.ble_phone_central.model.BleLifecycleState
-import com.example.ble_phone_central.service.BleCentralService
+import com.example.ble_kit.definition.UUIDTable
+import com.example.ble_kit.model.BleLifecycleState
 import java.util.UUID
 
-class GattManager(
+internal class GattManager(
     private val context: Context,
     private val device: BluetoothDevice,
     bleLifecycleStateChange: (BleLifecycleState) -> Unit
@@ -157,6 +157,7 @@ class GattManager(
             }
         }
     }
+
     private fun onCharacteristicChangedResult(
         gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, receiveData: ByteArray
     ) {
@@ -173,6 +174,7 @@ class GattManager(
             Log.e(TAG, "onCharacteristicChanged unknown uuid $characteristic.uuid")
         }
     }
+
     private fun onCharacteristicReadResult(
         gatt: BluetoothGatt,
         characteristic: BluetoothGattCharacteristic,
@@ -269,7 +271,6 @@ class GattManager(
     }
 
 
-
     internal fun onRequestCharacteristicRead() {
         Log.d(TAG, "onRequestCharacteristicRead")
         mGatt ?: run {
@@ -307,19 +308,29 @@ class GattManager(
                 )
                 return
             }
-        if (!characteristic.isWriteable()) {
-            Log.e(
-                TAG,
-                "ERROR: write failed, characteristic not writeable ${UUIDTable.GATT_CHAR_FOR_WRITE_UUID}"
-            )
-            return
+        val writeType = when {
+            characteristic.isWriteable() -> {
+                BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+            }
+
+            characteristic.isWriteableWithoutResponse() -> {
+                BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+            }
+
+            else -> {
+                Log.e(
+                    TAG,
+                    "ERROR: write failed, characteristic not writeable ${UUIDTable.GATT_CHAR_FOR_WRITE_UUID}"
+                )
+                return
+            }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             mGatt?.writeCharacteristic(
-                characteristic, data, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                characteristic, data, writeType
             )
         } else {
-            characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+            characteristic.writeType = writeType
             characteristic.value = data
             mGatt?.writeCharacteristic(characteristic)
         }

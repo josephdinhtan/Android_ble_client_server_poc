@@ -1,35 +1,32 @@
-package com.example.ble_phone_central.manager
+package com.example.ble_kit.manager
 
 import android.content.Context
 import android.util.Log
-import com.example.ble_phone_central.model.BleLifecycleState
-import com.example.ble_phone_central.service.BleCentralService
-import kotlinx.coroutines.flow.MutableSharedFlow
+import com.example.ble_kit.model.BleLifecycleState
+import com.example.ble_kit.service.BleCentralService
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
-class BleManagerImpl constructor(
+class BleCentralManagerImpl constructor(
     private val context: Context
-) : BleManager {
+) : BleCentralManager {
     override val bleLifecycleState: SharedFlow<BleLifecycleState> =
-        BleCentralService.bleLifecycleStateShareFlow.asSharedFlow()
+        BleCentralService.bleLifecycleStateShareFlow
     override val bleIndicationData: SharedFlow<ByteArray> =
-        BleCentralService.bleIndicationDataShareFlow.asSharedFlow()
+        BleCentralService.bleIndicationDataShareFlow
     override val wifiDirectServerName: SharedFlow<String> =
-        BleCentralService.wifiDirectServerNameShareFlow.asSharedFlow()
+        BleCentralService.wifiDirectServerNameShareFlow
 
     override fun start() {
-        Log.d("BleManagerImpl_Jdt", "start()")
+        Log.d("BleCentralManagerImpl_Jdt", "start()")
         BleCentralService.sendIntentToServiceClass<Any>(
-            context,
-            BleCentralService.ACTION_BLE_SCAN_START
+            context, BleCentralService.ACTION_BLE_SCAN_START
         )
     }
 
     override fun stop() {
         BleCentralService.sendIntentToServiceClass<Any>(
-            context,
-            BleCentralService.ACTION_BLE_STOP
+            context, BleCentralService.ACTION_BLE_STOP
         )
     }
 
@@ -44,8 +41,7 @@ class BleManagerImpl constructor(
 
     override fun requestReadWifiName() {
         BleCentralService.sendIntentToServiceClass<ByteArray>(
-            context,
-            BleCentralService.ACTION_CHAR_REQUEST_READ
+            context, BleCentralService.ACTION_CHAR_REQUEST_READ
         )
     }
 }

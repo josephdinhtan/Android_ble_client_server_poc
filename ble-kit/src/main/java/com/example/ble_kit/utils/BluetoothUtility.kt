@@ -1,4 +1,4 @@
-package com.example.ble_phone_central.Helper
+package com.example.ble_kit.utils
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -17,7 +17,7 @@ object BluetoothUtility {
         return bluetoothAdapter!!
     }
 
-    internal fun isBluetoothOn(context: Context): Boolean {
+    fun isBluetoothOn(context: Context): Boolean {
         return getBluetoothAdapter(context).isEnabled
     }
 
