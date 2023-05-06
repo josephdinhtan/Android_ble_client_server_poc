@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 rootProject.name = "Study BLE Connection"
 include ':ble_accy_peripheral'
 include ':ble_phone_central'
+include ':ble-kit'

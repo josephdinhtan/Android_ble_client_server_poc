@@ -1,4 +1,4 @@
-package com.example.ble_phone_central
+package com.example.ble_phone_central.Helper
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -10,23 +10,22 @@ import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.example.ble_phone_central.BleDefinition.UUIDTable
+import com.example.ble_phone_central.model.BleLifecycleState
+import com.example.ble_phone_central.service.BleCentralService
 import java.util.UUID
 
-class CentralGattManager(
-    context: Context,
-    device: BluetoothDevice,
+class GattManager(
+    private val context: Context,
+    private val device: BluetoothDevice,
     bleLifecycleStateChange: (BleLifecycleState) -> Unit
 ) {
-    private val mContext = context
-    private val mDevice = device
     private var mConnectionState = BluetoothAdapter.STATE_DISCONNECTED
     private var mGatt: BluetoothGatt? = null
 
     private val mGattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(
-            gatt: BluetoothGatt,
-            connectionStateChangeStatus: Int,
-            newState: Int
+            gatt: BluetoothGatt, connectionStateChangeStatus: Int, newState: Int
         ) {
             val deviceAddress = gatt.device.address
             mConnectionState = newState
@@ -34,18 +33,16 @@ class CentralGattManager(
             if (connectionStateChangeStatus == BluetoothGatt.GATT_SUCCESS) {
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
                     mGatt = gatt
-                    CentralBleService.sendIntentToServiceClass<Any>(
-                        mContext,
-                        CentralBleService.ACTION_GATT_CONNECTED
+                    BleCentralService.sendIntentToServiceClass<Any>(
+                        context, BleCentralService.ACTION_GATT_CONNECTED
                     )
                 } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                     Log.d(TAG, "Disconnected from $deviceAddress")
                     setConnectedGattToNull()
                     gatt.close()
                     bleLifecycleStateChange(BleLifecycleState.Disconnected)
-                    CentralBleService.sendIntentToServiceClass<Any>(
-                        mContext,
-                        CentralBleService.ACTION_GATT_DISCONNECTED
+                    BleCentralService.sendIntentToServiceClass<Any>(
+                        context, BleCentralService.ACTION_GATT_DISCONNECTED
                     )
                 }
             } else {
@@ -82,10 +79,17 @@ class CentralGattManager(
                 gatt.disconnect()
                 return
             }
-            CentralBleService.sendIntentToServiceClass<Any>(
-                mContext,
-                CentralBleService.ACTION_GATT_SERVICE_DISCOVERED
+            BleCentralService.sendIntentToServiceClass<Any>(
+                context, BleCentralService.ACTION_GATT_SERVICE_DISCOVERED
             )
+        }
+
+        override fun onCharacteristicRead(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+            onCharacteristicReadResult(gatt, characteristic, characteristic.value, status)
         }
 
         override fun onCharacteristicRead(
@@ -94,29 +98,11 @@ class CentralGattManager(
             data: ByteArray,
             status: Int
         ) {
-            if (characteristic.uuid == UUIDTable.GATT_CHAR_FOR_READ_UUID) {
-                val strValue = data.toString(Charsets.UTF_8)
-                val log = "onCharacteristicRead " + when (status) {
-                    BluetoothGatt.GATT_SUCCESS -> "OK, value=\"$strValue\""
-                    BluetoothGatt.GATT_READ_NOT_PERMITTED -> "not allowed"
-                    else -> "error $status"
-                }
-                Log.d(TAG, log)
-                CentralBleService.sendIntentToServiceClass(
-                    mContext,
-                    CentralBleService.ACTION_CHAR_READ_DONE,
-                    CentralBleService.EXTRA_CHAR_READ_DATA,
-                    data
-                )
-            } else {
-                Log.e(TAG, "onCharacteristicRead unknown uuid $characteristic.uuid")
-            }
+            onCharacteristicReadResult(gatt, characteristic, data, status)
         }
 
         override fun onCharacteristicWrite(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic,
-            status: Int
+            gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int
         ) {
             if (characteristic.uuid == UUIDTable.GATT_CHAR_FOR_WRITE_UUID) {
                 val log: String = "onCharacteristicWrite " + when (status) {
@@ -126,10 +112,10 @@ class CentralGattManager(
                     else -> "error $status"
                 }
                 Log.d(TAG, log)
-                CentralBleService.sendIntentToServiceClass(
-                    mContext,
-                    CentralBleService.ACTION_CHAR_WRITE_DONE,
-                    CentralBleService.EXTRA_CHAR_WRITE_ACK,
+                BleCentralService.sendIntentToServiceClass(
+                    context,
+                    BleCentralService.ACTION_CHAR_WRITE_DONE,
+                    BleCentralService.EXTRA_CHAR_WRITE_ACK,
                     status
                 )
             } else {
@@ -138,37 +124,27 @@ class CentralGattManager(
         }
 
         override fun onCharacteristicChanged(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic,
-            data: ByteArray
+            gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic
         ) {
-            if (characteristic.uuid == UUIDTable.GATT_CHAR_FOR_INDICATE_UUID) {
-                val strValue = data.toString(Charsets.UTF_8)
-                Log.d(TAG, "onCharacteristicChanged value=\"$strValue\"")
-                CentralBleService.sendIntentToServiceClass(
-                    mContext,
-                    CentralBleService.ACTION_RECEIVE_INDICATE,
-                    CentralBleService.EXTRA_RECEIVE_INDICATE_DATA,
-                    data
-                )
-            } else {
-                Log.e(TAG, "onCharacteristicChanged unknown uuid $characteristic.uuid")
-            }
+            onCharacteristicChangedResult(gatt, characteristic, characteristic.value)
+        }
+
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, data: ByteArray
+        ) {
+            onCharacteristicChangedResult(gatt, characteristic, data)
         }
 
         override fun onDescriptorWrite(
-            gatt: BluetoothGatt,
-            descriptor: BluetoothGattDescriptor,
-            status: Int
+            gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int
         ) {
             if (descriptor.characteristic.uuid == UUIDTable.GATT_CHAR_FOR_INDICATE_UUID) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     Log.d(TAG, "onDescriptorWrite: descriptor GATT_SUCCESS")
                     // subscription processed, consider connection is ready for use
                     bleLifecycleStateChange(BleLifecycleState.Connected)
-                    CentralBleService.sendIntentToServiceClass<Any>(
-                        mContext,
-                        CentralBleService.ACTION_GATT_CHAR_INDICATION_SUBSCRIBED
+                    BleCentralService.sendIntentToServiceClass<Any>(
+                        context, BleCentralService.ACTION_GATT_CHAR_INDICATION_SUBSCRIBED
                     )
                 } else {
                     Log.e(
@@ -181,10 +157,50 @@ class CentralGattManager(
             }
         }
     }
+    private fun onCharacteristicChangedResult(
+        gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, receiveData: ByteArray
+    ) {
+        if (characteristic.uuid == UUIDTable.GATT_CHAR_FOR_INDICATE_UUID) {
+            val strValue = receiveData.toString(Charsets.UTF_8)
+            Log.d(TAG, "onCharacteristicChanged value=\"$strValue\"")
+            BleCentralService.sendIntentToServiceClass(
+                context,
+                BleCentralService.ACTION_RECEIVE_INDICATE,
+                BleCentralService.EXTRA_RECEIVE_INDICATE_DATA,
+                receiveData
+            )
+        } else {
+            Log.e(TAG, "onCharacteristicChanged unknown uuid $characteristic.uuid")
+        }
+    }
+    private fun onCharacteristicReadResult(
+        gatt: BluetoothGatt,
+        characteristic: BluetoothGattCharacteristic,
+        receiveData: ByteArray,
+        status: Int
+    ) {
+        if (characteristic.uuid == UUIDTable.GATT_CHAR_FOR_READ_UUID) {
+            val strValue = receiveData.toString(Charsets.UTF_8)
+            val log = "onCharacteristicRead " + when (status) {
+                BluetoothGatt.GATT_SUCCESS -> "OK, value=\"$strValue\""
+                BluetoothGatt.GATT_READ_NOT_PERMITTED -> "not allowed"
+                else -> "error $status"
+            }
+            Log.d(TAG, "onCharacteristicRead $log")
+            BleCentralService.sendIntentToServiceClass(
+                context,
+                BleCentralService.ACTION_CHAR_READ_DONE,
+                BleCentralService.EXTRA_CHAR_READ_DATA,
+                receiveData
+            )
+        } else {
+            Log.e(TAG, "onCharacteristicRead unknown uuid $characteristic.uuid")
+        }
+    }
 
     internal fun connect(): BluetoothGatt {
         Log.d(TAG, "trigger connect Gatt")
-        return mDevice.connectGatt(mContext, false, mGattCallback)
+        return device.connectGatt(context, false, mGattCallback)
     }
 
     internal fun discoverServices(): Boolean {
@@ -194,75 +210,103 @@ class CentralGattManager(
 
     internal fun subscribeToCharacteristicIndication() {
         Log.d(TAG, "subscribeToIndications")
-        val characteristicForIndicate = getGattServiceCharacterictis(UUIDTable.GATT_CHAR_FOR_INDICATE_UUID)
-        characteristicForIndicate?.getDescriptor(UUIDTable.GATT_CCC_DESCRIPTOR_UUID)?.let { cccDescriptor ->
-            if (mGatt?.setCharacteristicNotification(characteristicForIndicate, true) == false) {
-                Log.e(
-                    TAG,
-                    "ERROR: setNotification(true) failed for ${characteristicForIndicate.uuid}"
-                )
-                return
-            }
-            Log.d(TAG, "writeDescriptor")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                mGatt?.writeDescriptor(cccDescriptor, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE)
-            } else {
-                cccDescriptor.value = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
-                mGatt?.writeDescriptor(cccDescriptor)
-            }
-        } ?: run {
+        val characteristicForIndicate =
+            getGattServiceCharacterictis(UUIDTable.GATT_CHAR_FOR_INDICATE_UUID)
+        characteristicForIndicate?.getDescriptor(UUIDTable.GATT_CCC_DESCRIPTOR_UUID)
+            ?.let { cccDescriptor ->
+                if (mGatt?.setCharacteristicNotification(
+                        characteristicForIndicate, true
+                    ) == false
+                ) {
+                    Log.e(
+                        TAG,
+                        "ERROR: setNotification(true) failed for ${characteristicForIndicate.uuid}"
+                    )
+                    return
+                }
+                Log.d(TAG, "writeDescriptor")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    mGatt?.writeDescriptor(
+                        cccDescriptor, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+                    )
+                } else {
+                    cccDescriptor.value = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+                    mGatt?.writeDescriptor(cccDescriptor)
+                }
+            } ?: run {
             Log.w(TAG, "WARN: characteristic not found ${UUIDTable.GATT_CCC_DESCRIPTOR_UUID}")
         }
     }
 
     internal fun unsubscribeFromCharacteristic() {
         Log.d(TAG, "unsubscribeFromCharacteristic")
-        val characteristicForIndicate = getGattServiceCharacterictis(UUIDTable.GATT_CHAR_FOR_INDICATE_UUID)
-        characteristicForIndicate?.getDescriptor(UUIDTable.GATT_CCC_DESCRIPTOR_UUID)?.let { cccDescriptor ->
-            if (mGatt?.setCharacteristicNotification(characteristicForIndicate, true) == false) {
-                Log.e(
-                    TAG,
-                    "ERROR: setNotification(true) failed for ${characteristicForIndicate.uuid}"
-                )
-                return
-            }
-            Log.d(TAG, "writeDescriptor")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                mGatt?.writeDescriptor(cccDescriptor, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE)
-            } else {
-                cccDescriptor.value = BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
-                mGatt?.writeDescriptor(cccDescriptor)
-            }
-        } ?: run {
+        val characteristicForIndicate =
+            getGattServiceCharacterictis(UUIDTable.GATT_CHAR_FOR_INDICATE_UUID)
+        characteristicForIndicate?.getDescriptor(UUIDTable.GATT_CCC_DESCRIPTOR_UUID)
+            ?.let { cccDescriptor ->
+                if (mGatt?.setCharacteristicNotification(
+                        characteristicForIndicate, true
+                    ) == false
+                ) {
+                    Log.e(
+                        TAG,
+                        "ERROR: setNotification(true) failed for ${characteristicForIndicate.uuid}"
+                    )
+                    return
+                }
+                Log.d(TAG, "writeDescriptor")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    mGatt?.writeDescriptor(
+                        cccDescriptor, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
+                    )
+                } else {
+                    cccDescriptor.value = BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
+                    mGatt?.writeDescriptor(cccDescriptor)
+                }
+            } ?: run {
             Log.w(TAG, "WARN: characteristic not found ${UUIDTable.GATT_CCC_DESCRIPTOR_UUID}")
         }
     }
 
+
+
     internal fun onRequestCharacteristicRead() {
-        var gatt = mGatt ?: run {
+        Log.d(TAG, "onRequestCharacteristicRead")
+        mGatt ?: run {
             Log.e(TAG, "ERROR: read failed, no connected device")
             return
         }
-        var characteristic = getGattServiceCharacterictis(UUIDTable.GATT_CHAR_FOR_READ_UUID) ?: run {
-            Log.e(TAG, "ERROR: read failed, characteristic unavailable ${UUIDTable.GATT_CHAR_FOR_READ_UUID}")
-            return
-        }
+        var characteristic =
+            getGattServiceCharacterictis(UUIDTable.GATT_CHAR_FOR_READ_UUID) ?: run {
+                Log.e(
+                    TAG,
+                    "ERROR: read failed, characteristic unavailable ${UUIDTable.GATT_CHAR_FOR_READ_UUID}"
+                )
+                return
+            }
         if (!characteristic.isReadable()) {
-            Log.e(TAG, "ERROR: read failed, characteristic not readable ${UUIDTable.GATT_CHAR_FOR_READ_UUID}")
+            Log.e(
+                TAG,
+                "ERROR: read failed, characteristic not readable ${UUIDTable.GATT_CHAR_FOR_READ_UUID}"
+            )
             return
         }
-        gatt.readCharacteristic(characteristic)
+        mGatt?.readCharacteristic(characteristic)
     }
 
     fun onRequestCharacteristicWrite(data: ByteArray) {
-        var gatt = mGatt ?: run {
+        mGatt ?: run {
             Log.e(TAG, "ERROR: write failed, no connected device")
             return
         }
-        var characteristic = getGattServiceCharacterictis(UUIDTable.GATT_CHAR_FOR_WRITE_UUID) ?: run {
-            Log.e(TAG, "ERROR: write failed, characteristic unavailable ${UUIDTable.GATT_CHAR_FOR_WRITE_UUID}")
-            return
-        }
+        var characteristic =
+            getGattServiceCharacterictis(UUIDTable.GATT_CHAR_FOR_WRITE_UUID) ?: run {
+                Log.e(
+                    TAG,
+                    "ERROR: write failed, characteristic unavailable ${UUIDTable.GATT_CHAR_FOR_WRITE_UUID}"
+                )
+                return
+            }
         if (!characteristic.isWriteable()) {
             Log.e(
                 TAG,
@@ -270,9 +314,15 @@ class CentralGattManager(
             )
             return
         }
-        characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        characteristic.value = data
-        gatt.writeCharacteristic(characteristic)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            mGatt?.writeCharacteristic(
+                characteristic, data, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+            )
+        } else {
+            characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+            characteristic.value = data
+            mGatt?.writeCharacteristic(characteristic)
+        }
     }
 
     internal fun close() {
@@ -323,8 +373,7 @@ class CentralGattManager(
 
         services.forEach { service ->
             val characteristicsTable = service.characteristics.joinToString(
-                separator = "\n|--",
-                prefix = "|--"
+                separator = "\n|--", prefix = "|--"
             ) { it.uuid.toString() }
             Log.i(TAG, "\n Service ${service.uuid}\ncharacteristics:\n$characteristicsTable")
         }
@@ -350,7 +399,7 @@ class CentralGattManager(
     }
 
     companion object {
-        private const val TAG = "CentralGattManager_Jdt"
+        private const val TAG = "GattManager_Jdt"
 
         private val ENABLE_BATTERY_SAVE = byteArrayOf(0x01)
         private val CHANGE_RESOLUTION_TO_HD = byteArrayOf(0x02)

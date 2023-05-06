@@ -10,13 +10,21 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import com.example.ble_phone_central.databinding.ActivityMainBinding
+import com.example.ble_phone_central.model.BleLifecycleState
+import com.example.ble_phone_central.service.BleCentralService
+import com.example.ble_phone_central.Helper.BluetoothUtility
+import com.example.ble_phone_central.manager.BleManager
+import com.example.ble_phone_central.manager.BleManagerImpl
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
-private const val ENABLE_BLUETOOTH_REQUEST_CODE = 1
 private const val LOCATION_PERMISSION_REQUEST_CODE = 2
 private const val BLUETOOTH_ALL_PERMISSIONS_REQUEST_CODE = 3
 
@@ -24,7 +32,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var activityBinding: ActivityMainBinding
 
-    private val userWantsToScanAndConnect: Boolean get() = activityBinding.switchConnect.isChecked
+    private val mBleManager: BleManager by lazy {
+        BleManagerImpl(this)
+    }
 
     private var lifecycleState = BleLifecycleState.Disconnected
         set(value) {
@@ -38,9 +48,12 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        super.onCreate(savedInstanceState)
+        Log.d(TAG, "onCreate")
+
         activityBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(activityBinding.root)
 
@@ -53,13 +66,38 @@ class MainActivity : AppCompatActivity() {
                 else -> {}
             }
         }
+        GlobalScope.launch(Dispatchers.Main) {
+            mBleManager.bleLifecycleState.collect() { state ->
+                activityBinding.textViewLifecycleState.text = state.toString()
+            }
+        }
+        GlobalScope.launch(Dispatchers.Main) {
+            mBleManager.wifiDirectServerName
+                .collect {
+                    activityBinding.textViewReadValue.text = it
+                }
+        }
+        GlobalScope.launch(Dispatchers.Main) {
+            mBleManager.bleIndicationData
+                .collect {
+                    activityBinding.textViewIndicateValue.text = it.toString(Charsets.UTF_8)
+                }
+        }
+    }
+
+    fun onTapRead(view: View) {
+        mBleManager.requestReadWifiName()
+    }
+
+    fun onTapWrite(view: View) {
+        mBleManager.sendData("Test Command".toByteArray())
     }
 
     private fun prepareAndStartBleScan() {
         ensureBluetoothCanBeUsed { isSuccess, message ->
             if (isSuccess) {
                 Log.d(TAG, "Start Service and start SCAN")
-                CentralBleService.sendIntentToServiceClass<Any>(this, CentralBleService.ACTION_BLE_SCAN_START)
+                mBleManager.start()
             }
         }
     }
@@ -116,7 +154,7 @@ class MainActivity : AppCompatActivity() {
     private var bluetoothOnCallback: ((Boolean) -> Unit)? = null
     private fun enableBluetooth(askType: AskType, completion: (Boolean) -> Unit) {
         bluetoothOnCallback = completion
-        if (CentralBluetoothUtility.isBluetoothOn(this)) {
+        if (BluetoothUtility.isBluetoothOn(this)) {
             completion(true)
         } else {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)

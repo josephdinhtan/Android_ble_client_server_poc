@@ -1,4 +1,4 @@
-package com.example.ble_phone_central
+package com.example.ble_phone_central.Helper
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -13,28 +13,30 @@ import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
 import androidx.core.app.ActivityCompat
+import com.example.ble_phone_central.BleDefinition.UUIDTable
+import com.example.ble_phone_central.model.BleLifecycleState
+import com.example.ble_phone_central.service.BleCentralService
 
 class BleScanHelper(
-    context: Context,
-    bleLifecycleStateChange: (BleLifecycleState) -> Unit
+    private val context: Context,
+    private val bleLifecycleStateChange: (BleLifecycleState) -> Unit
 ) {
-    private val mContext = context
     private var isScanning = false
 
 
     @SuppressLint("MissingPermission")
     internal fun startScan() {
         Log.d(TAG, "startScan()")
-        if (CentralBluetoothUtility.isBluetoothOn(mContext)) {
+        if (BluetoothUtility.isBluetoothOn(context)) {
             if (isScanning) {
                 Log.e(TAG, "Already scanning")
             } else {
                 val serviceFilter = mScanFilter.serviceUuid?.uuid.toString()
                 Log.d(TAG, "Starting BLE scan, filter: $serviceFilter")
-
+                bleLifecycleStateChange(BleLifecycleState.Scanning)
                 isScanning = true
                 if (isBluetoothScanPermissionGranted) {
-                    CentralBluetoothUtility.getBleScanner(mContext)
+                    BluetoothUtility.getBleScanner(context)
                         .startScan(mutableListOf(mScanFilter), scanSettingsSinceM, scanCallback)
                 } else {
                     Log.e(TAG, "Bluetooth SCAN permission denied")
@@ -45,11 +47,15 @@ class BleScanHelper(
         }
     }
 
+    internal fun stopScan() {
+        safeStopBleScan()
+    }
+
     private val isBluetoothScanPermissionGranted: Boolean
         get() {
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 ActivityCompat.checkSelfPermission(
-                    mContext,
+                    context,
                     Manifest.permission.BLUETOOTH_SCAN
                 ) == PackageManager.PERMISSION_GRANTED
             } else {
@@ -60,7 +66,7 @@ class BleScanHelper(
         get() {
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 ActivityCompat.checkSelfPermission(
-                    mContext,
+                    context,
                     Manifest.permission.BLUETOOTH_CONNECT
                 ) == PackageManager.PERMISSION_GRANTED
             } else {
@@ -82,9 +88,9 @@ class BleScanHelper(
             )
             safeStopBleScan()
             bleLifecycleStateChange(BleLifecycleState.Connecting)
-            CentralBleService.sendIntentToServiceClass(
-                mContext,
-                CentralBleService.ACTION_BLE_DEVICE_FOUND,
+            BleCentralService.sendIntentToServiceClass(
+                context,
+                BleCentralService.ACTION_BLE_DEVICE_FOUND,
                 BluetoothDevice.EXTRA_DEVICE,
                 result.device
             )
@@ -111,7 +117,7 @@ class BleScanHelper(
         Log.d(TAG, "Stopping BLE scan")
         isScanning = false
         if (isBluetoothScanPermissionGranted) {
-            CentralBluetoothUtility.getBleScanner(mContext).stopScan(scanCallback)
+            BluetoothUtility.getBleScanner(context).stopScan(scanCallback)
         } else {
             Log.e(TAG, "Bluetooth SCAN permission denied")
         }

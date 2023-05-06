@@ -1,11 +1,11 @@
-package com.example.ble_phone_central
+package com.example.ble_phone_central.Helper
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
 import android.content.Context
 
-object CentralBluetoothUtility {
+object BluetoothUtility {
     private var bluetoothAdapter: BluetoothAdapter? = null
 
     private fun getBluetoothAdapter(context: Context): BluetoothAdapter {

@@ -29,7 +29,7 @@
                 android:name="android.app.lib_name"
                 android:value="" />
         </activity>
-        <service android:name=".CentralBleService"
+        <service android:name=".service.BleCentralService"
             android:enabled="true"
             android:exported="false" />
     </application>
