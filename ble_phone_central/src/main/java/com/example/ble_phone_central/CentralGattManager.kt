@@ -8,6 +8,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothProfile
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import java.util.UUID
 
@@ -203,7 +204,12 @@ class CentralGattManager(
                 return
             }
             Log.d(TAG, "writeDescriptor")
-            mGatt?.writeDescriptor(cccDescriptor, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                mGatt?.writeDescriptor(cccDescriptor, BluetoothGattDescriptor.ENABLE_INDICATION_VALUE)
+            } else {
+                cccDescriptor.value = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+                mGatt?.writeDescriptor(cccDescriptor)
+            }
         } ?: run {
             Log.w(TAG, "WARN: characteristic not found ${UUIDTable.GATT_CCC_DESCRIPTOR_UUID}")
         }
@@ -221,7 +227,12 @@ class CentralGattManager(
                 return
             }
             Log.d(TAG, "writeDescriptor")
-            mGatt?.writeDescriptor(cccDescriptor, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                mGatt?.writeDescriptor(cccDescriptor, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE)
+            } else {
+                cccDescriptor.value = BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
+                mGatt?.writeDescriptor(cccDescriptor)
+            }
         } ?: run {
             Log.w(TAG, "WARN: characteristic not found ${UUIDTable.GATT_CCC_DESCRIPTOR_UUID}")
         }
