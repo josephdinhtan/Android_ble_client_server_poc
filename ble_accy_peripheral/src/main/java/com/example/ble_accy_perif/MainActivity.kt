@@ -3,60 +3,60 @@ package com.example.ble_accy_perif
 import android.Manifest
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothGatt
-import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothGattDescriptor
-import android.bluetooth.BluetoothGattServer
-import android.bluetooth.BluetoothGattServerCallback
-import android.bluetooth.BluetoothGattService
-import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothProfile
-import android.bluetooth.le.AdvertiseCallback
-import android.bluetooth.le.AdvertiseData
-import android.bluetooth.le.AdvertiseSettings
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.os.ParcelUuid
 import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import com.example.ble_accy_perif.databinding.ActivityMainBinding
-import java.text.SimpleDateFormat
-import java.util.Arrays
-import java.util.Date
-import java.util.Locale
-import java.util.UUID
+import com.example.ble_kit.manager.BlePeripheralManager
+import com.example.ble_kit.manager.BlePeripheralManagerImpl
+import com.example.ble_kit.utils.BluetoothUtility
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import timber.log.Timber
 
 private const val ENABLE_BLUETOOTH_REQUEST_CODE = 1
 private const val BLUETOOTH_ALL_PERMISSIONS_REQUEST_CODE = 2
 
 
 class MainActivity : AppCompatActivity() {
+
     private lateinit var activityBinding: ActivityMainBinding
+    private val mBleManager: BlePeripheralManager by lazy {
+        BlePeripheralManagerImpl(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        super.onCreate(savedInstanceState)
         activityBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(activityBinding.root)
 
-        Log.d(TAG, "onCreate()")
+        Timber.d("onCreate()")
         activityBinding.switchAdvertising.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
                 prepareAndStartAdvertising()
             } else {
-                PerifBleService.sendIntentToServiceClass<Any>(
-                    this,
-                    PerifBleService.ACTION_BLE_ADVERTISING_STOP
-                )
             }
+        }
+
+        GlobalScope.launch(Dispatchers.Main) {
+            mBleManager.bleLifecycleState.collect() { state ->
+                activityBinding.textViewLifecycleState.text = state.toString()
+            }
+        }
+        GlobalScope.launch(Dispatchers.Main) {
+            mBleManager.bleWriteRequestData
+                .collect {
+                    activityBinding.textViewCharForWrite.text = it.toString(Charsets.UTF_8)
+                }
         }
     }
 
@@ -65,24 +65,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun onTapSend(view: View) {
-        val text = activityBinding.editTextCharForIndicate.text.toString()
-        val data = text.toByteArray(Charsets.UTF_8)
-        PerifBleService.sendIntentToServiceClass<ByteArray>(
-            this,
-            PerifBleService.ACTION_NOTIFY_TO_SUBSCRIBED_DEVICES,
-            PerifBleService.EXTRA_NOTIFY_TO_SUBSCRIBED_DEVICES_DATA,
-            data
-        )
+        val data = activityBinding.editTextCharForIndicate.text.toString()
+        mBleManager.sendData(data.toByteArray())
     }
 
     private fun prepareAndStartAdvertising() {
         ensureBluetoothCanBeUsed { isSuccess, _ ->
             runOnUiThread {
                 if (isSuccess) {
-                    PerifBleService.sendIntentToServiceClass<Any>(
-                        this,
-                        PerifBleService.ACTION_BLE_ADVERTISING_START
-                    )
+                    mBleManager.start()
                 }
             }
         }
@@ -129,7 +120,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun enableBluetooth(askType: AskType, completion: (Boolean) -> Unit) {
-        if (PerifBluetoothUtility.isBluetoothOn(this)) {
+        if (BluetoothUtility.isBluetoothOn(this)) {
             completion(true)
         } else {
             val intentString = BluetoothAdapter.ACTION_REQUEST_ENABLE
@@ -137,7 +128,6 @@ class MainActivity : AppCompatActivity() {
 
             // set activity result handler
             activityResultHandlers[requestCode] = { result ->
-                Unit
                 val isSuccess = result == Activity.RESULT_OK
                 if (isSuccess || askType != AskType.InsistUntilSuccess) {
                     activityResultHandlers.remove(requestCode)
@@ -148,7 +138,7 @@ class MainActivity : AppCompatActivity() {
                             Manifest.permission.BLUETOOTH_CONNECT
                         ) != PackageManager.PERMISSION_GRANTED
                     ) {
-                        Log.e(TAG, "Permission denied BLUETOOTH_CONNECT")
+                        Timber.e("Permission denied BLUETOOTH_CONNECT")
                     } else {
                         startActivityForResult(Intent(intentString), requestCode)
                     }

@@ -1,4 +1,4 @@
-package com.example.ble_accy_perif
+package com.example.ble_kit.service
 
 import android.Manifest
 import android.bluetooth.BluetoothAdapter
@@ -12,13 +12,18 @@ import android.bluetooth.BluetoothGattService
 import android.bluetooth.BluetoothProfile
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
 import androidx.core.app.ActivityCompat
+import com.example.ble_kit.definition.UUIDTable
+import com.example.ble_kit.model.BleLifecycleState
+import com.example.ble_kit.utils.BluetoothUtility
 import java.util.Arrays
 import java.util.UUID
 
-class PerifGattManager(context: Context) {
-    private val mContext = context
+internal class GattServerManager(
+    private val context: Context, private val bleLifecycleStateChange: (BleLifecycleState) -> Unit
+) {
     private var mConnectionState = BluetoothAdapter.STATE_DISCONNECTED
     private var mGattServer: BluetoothGattServer? = null
     private val mSubscribedDevices = mutableSetOf<BluetoothDevice>()
@@ -27,8 +32,10 @@ class PerifGattManager(context: Context) {
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 Log.d(TAG, "Central did connect")
+                bleLifecycleStateChange(BleLifecycleState.Connected)
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.d(TAG, "Central did disconnect")
+                bleLifecycleStateChange(BleLifecycleState.Disconnected)
                 mSubscribedDevices.remove(device)
             } else {
                 Log.d(TAG, "No handle state: $newState")
@@ -49,8 +56,7 @@ class PerifGattManager(context: Context) {
             if (characteristic.uuid == UUIDTable.GATT_CHAR_FOR_READ_UUID) {
                 val strValue = "This is a dummy"
                 if (ActivityCompat.checkSelfPermission(
-                        mContext,
-                        Manifest.permission.BLUETOOTH_CONNECT
+                        this@GattServerManager.context, Manifest.permission.BLUETOOTH_CONNECT
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
                     Log.e(TAG, "Permission denied BLUETOOTH_CONNECT")
@@ -87,8 +93,7 @@ class PerifGattManager(context: Context) {
                 var strValue = value?.toString(Charsets.UTF_8) ?: ""
                 if (responseNeeded) {
                     if (ActivityCompat.checkSelfPermission(
-                            mContext,
-                            Manifest.permission.BLUETOOTH_CONNECT
+                            this@GattServerManager.context, Manifest.permission.BLUETOOTH_CONNECT
                         ) != PackageManager.PERMISSION_GRANTED
                     ) {
                         Log.e(
@@ -108,14 +113,16 @@ class PerifGattManager(context: Context) {
                 } else {
                     log += "\nresponse=notNeeded, value=\"$strValue\""
                 }
+                BlePeripheralService.sendIntentToServiceClass<ByteArray>(
+                    context,
+                    BlePeripheralService.ACTION_WRITE_REQUEST_COME,
+                    BlePeripheralService.EXTRA_WRITE_REQUEST_COME_DATA,
+                    value
+                )
             } else {
                 if (responseNeeded) {
                     mGattServer?.sendResponse(
-                        device,
-                        requestId,
-                        BluetoothGatt.GATT_FAILURE,
-                        0,
-                        null
+                        device, requestId, BluetoothGatt.GATT_FAILURE, 0, null
                     )
                     log += "\nresponse=failure, unknown UUID\n${characteristic.uuid}"
                 } else {
@@ -141,25 +148,13 @@ class PerifGattManager(context: Context) {
                     BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
                 }
                 if (ActivityCompat.checkSelfPermission(
-                        mContext,
-                        Manifest.permission.BLUETOOTH_CONNECT
+                        this@GattServerManager.context, Manifest.permission.BLUETOOTH_CONNECT
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
                     Log.e(TAG, "onDescriptorReadRequest() Permission denied BLUETOOTH_CONNECT")
-                    // TODO: Consider calling
-                    //    ActivityCompat#requestPermissions
-                    // here to request the missing permissions, and then overriding
-                    //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                    //                                          int[] grantResults)
-                    // to handle the case where the user grants the permission. See the documentation
-                    // for ActivityCompat#requestPermissions for more details.
                 } else {
                     mGattServer?.sendResponse(
-                        device,
-                        requestId,
-                        BluetoothGatt.GATT_SUCCESS,
-                        0,
-                        returnValue
+                        device, requestId, BluetoothGatt.GATT_SUCCESS, 0, returnValue
                     )
                 }
             } else {
@@ -186,20 +181,20 @@ class PerifGattManager(context: Context) {
                         mSubscribedDevices.add(device)
                         status = BluetoothGatt.GATT_SUCCESS
                         strLog += ", subscribed"
+                        bleLifecycleStateChange(BleLifecycleState.ConnectedAndSubscribed)
                     } else if (Arrays.equals(
-                            value,
-                            BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
+                            value, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
                         )
                     ) {
                         mSubscribedDevices.remove(device)
                         status = BluetoothGatt.GATT_SUCCESS
                         strLog += ", unsubscribed"
+                        bleLifecycleStateChange(BleLifecycleState.ConnectedAndUnsubscribed)
                     }
                 }
                 if (responseNeeded) {
                     if (ActivityCompat.checkSelfPermission(
-                            mContext,
-                            Manifest.permission.BLUETOOTH_CONNECT
+                            this@GattServerManager.context, Manifest.permission.BLUETOOTH_CONNECT
                         ) != PackageManager.PERMISSION_GRANTED
                     ) {
                         Log.e(TAG, "onDescriptorWriteRequest() Permission denied BLUETOOTH_CONNECT")
@@ -213,11 +208,7 @@ class PerifGattManager(context: Context) {
                 strLog += " unknown uuid=${descriptor.uuid}"
                 if (responseNeeded) {
                     mGattServer?.sendResponse(
-                        device,
-                        requestId,
-                        BluetoothGatt.GATT_FAILURE,
-                        0,
-                        null
+                        device, requestId, BluetoothGatt.GATT_FAILURE, 0, null
                     )
                 }
             }
@@ -227,12 +218,10 @@ class PerifGattManager(context: Context) {
 
 
     internal fun bleStartGattServer() {
-        mGattServer = PerifBluetoothUtility.openGattServer(mContext, gattServerCallback)
-        val service =
-            BluetoothGattService(
-                UUIDTable.GATT_SERVICE_UUID,
-                BluetoothGattService.SERVICE_TYPE_PRIMARY
-            )
+        mGattServer = BluetoothUtility.openGattServer(context, gattServerCallback)
+        val service = BluetoothGattService(
+            UUIDTable.GATT_SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY
+        )
         var charForRead = BluetoothGattCharacteristic(
             UUIDTable.GATT_CHAR_FOR_READ_UUID,
             BluetoothGattCharacteristic.PROPERTY_READ,
@@ -260,8 +249,7 @@ class PerifGattManager(context: Context) {
 
         val result = mGattServer!!.addService(service)
         Log.d(
-            TAG,
-            "addService " + when (result) {
+            TAG, "addService " + when (result) {
                 true -> "OK"
                 false -> "fail"
             }
@@ -270,8 +258,7 @@ class PerifGattManager(context: Context) {
 
     internal fun bleStopGattServer() {
         if (ActivityCompat.checkSelfPermission(
-                mContext,
-                Manifest.permission.BLUETOOTH_CONNECT
+                context, Manifest.permission.BLUETOOTH_CONNECT
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             Log.e(TAG, "bleStopGattServer() Permission denied BLUETOOTH_CONNECT")
@@ -284,20 +271,24 @@ class PerifGattManager(context: Context) {
 
     internal fun onNotifyToSubscribedDevices(data: ByteArray) {
         val charForIndicate = getGattServiceCharacterictis(UUIDTable.GATT_CHAR_FOR_INDICATE_UUID)
-        charForIndicate?.let {
+        charForIndicate?.let { characteristic ->
             for (device in mSubscribedDevices) {
                 Log.d(
                     TAG,
                     "sending indication: \"${data.toString(Charsets.UTF_8)}\" to BT device: ${device.name}, address: ${device.address}"
                 )
                 if (ActivityCompat.checkSelfPermission(
-                        mContext,
-                        Manifest.permission.BLUETOOTH_CONNECT
+                        context, Manifest.permission.BLUETOOTH_CONNECT
                     ) != PackageManager.PERMISSION_GRANTED
                 ) {
                     Log.d(TAG, "Permission denied BLUETOOTH_CONNECT")
                 } else {
-                    mGattServer?.notifyCharacteristicChanged(device, it, true, data)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        mGattServer?.notifyCharacteristicChanged(device, characteristic, true, data)
+                    } else {
+                        characteristic.value = data
+                        mGattServer?.notifyCharacteristicChanged(device, characteristic, true)
+                    }
                 }
             }
         }

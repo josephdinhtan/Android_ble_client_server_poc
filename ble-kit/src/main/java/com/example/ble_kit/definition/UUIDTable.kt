@@ -2,7 +2,7 @@ package com.example.ble_kit.definition
 
 import java.util.UUID
 
-object UUIDTable {
+internal object UUIDTable {
 
     internal val GATT_SERVICE_UUID = UUID.fromString("25AE1441-05D3-4C5B-8281-93D4E07420CF")
     internal val GATT_CHAR_FOR_READ_UUID = UUID.fromString("25AE1442-05D3-4C5B-8281-93D4E07420CF")

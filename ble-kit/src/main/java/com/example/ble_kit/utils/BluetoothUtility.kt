@@ -1,30 +1,42 @@
 package com.example.ble_kit.utils
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothGattServer
+import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothManager
+import android.bluetooth.le.BluetoothLeAdvertiser
 import android.bluetooth.le.BluetoothLeScanner
 import android.content.Context
 
 object BluetoothUtility {
-    private var bluetoothAdapter: BluetoothAdapter? = null
+    private var bluetoothManager: BluetoothManager? = null
 
-    private fun getBluetoothAdapter(context: Context): BluetoothAdapter {
-        if (bluetoothAdapter == null) {
-            val bluetoothManager =
+    private fun getBluetoothManager(context: Context): BluetoothManager {
+        if (bluetoothManager == null) {
+            bluetoothManager =
                 context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-            bluetoothAdapter = bluetoothManager.adapter
         }
-        return bluetoothAdapter!!
+        return bluetoothManager!!
     }
 
     fun isBluetoothOn(context: Context): Boolean {
-        return getBluetoothAdapter(context).isEnabled
+        return getBluetoothManager(context).adapter.isEnabled
     }
 
     internal fun getBleScanner(context: Context): BluetoothLeScanner {
-        return getBluetoothAdapter(context).bluetoothLeScanner
+        return getBluetoothManager(context).adapter.bluetoothLeScanner
+    }
+    internal fun getBleAdvertiser(context: Context): BluetoothLeAdvertiser {
+        return getBluetoothManager(context).adapter.bluetoothLeAdvertiser
     }
 
+    internal fun openGattServer(
+        context: Context,
+        gattServerCallback: BluetoothGattServerCallback
+    ): BluetoothGattServer {
+        return getBluetoothManager(context).openGattServer(context, gattServerCallback)
+    }
 
     const val TAG = "BluetoothUtility"
 }

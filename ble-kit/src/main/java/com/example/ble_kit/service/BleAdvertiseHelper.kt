@@ -1,4 +1,4 @@
-package com.example.ble_accy_perif
+package com.example.ble_kit.service
 
 import android.Manifest
 import android.bluetooth.le.AdvertiseCallback
@@ -10,29 +10,34 @@ import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
 import androidx.core.app.ActivityCompat
+import com.example.ble_kit.definition.UUIDTable
+import com.example.ble_kit.model.BleLifecycleState
+import com.example.ble_kit.utils.BluetoothUtility
 
-class BleAdvertiseHelper(context: Context) {
-    private val mContext = context
+internal class BleAdvertiseHelper(
+    private val context: Context, private val bleLifecycleStateChange: (BleLifecycleState) -> Unit
+) {
     private var isAdvertising = false
 
 
     internal fun startAdvertising() {
         isAdvertising = true
-        PerifBluetoothUtility.getBleAdvertiser(mContext)
+        BluetoothUtility.getBleAdvertiser(context)
             .startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
+        bleLifecycleStateChange(BleLifecycleState.Advertising)
     }
 
     internal fun stopAdvertising() {
         isAdvertising = false
-        PerifBluetoothUtility.getBleAdvertiser(mContext).stopAdvertising(advertiseCallback)
+        BluetoothUtility.getBleAdvertiser(context).stopAdvertising(advertiseCallback)
+        bleLifecycleStateChange(BleLifecycleState.StoppedAdvertising)
     }
 
     private val isBluetoothScanPermissionGranted: Boolean
         get() {
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 ActivityCompat.checkSelfPermission(
-                    mContext,
-                    Manifest.permission.BLUETOOTH_SCAN
+                    context, Manifest.permission.BLUETOOTH_SCAN
                 ) == PackageManager.PERMISSION_GRANTED
             } else {
                 TODO("VERSION.SDK_INT < S")
@@ -42,19 +47,17 @@ class BleAdvertiseHelper(context: Context) {
         get() {
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 ActivityCompat.checkSelfPermission(
-                    mContext,
-                    Manifest.permission.BLUETOOTH_CONNECT
+                    context, Manifest.permission.BLUETOOTH_CONNECT
                 ) == PackageManager.PERMISSION_GRANTED
             } else {
                 TODO("VERSION.SDK_INT < S")
             }
         }
 
-    private val advertiseSettings = AdvertiseSettings.Builder()
-        .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
-        .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
-        .setConnectable(true)
-        .build()
+    private val advertiseSettings =
+        AdvertiseSettings.Builder().setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
+            .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM).setConnectable(true)
+            .build()
 
     private val advertiseData = AdvertiseData.Builder()
         .setIncludeDeviceName(false) // don't include name, because if name size > 8 bytes, ADVERTISE_FAILED_DATA_TOO_LARGE

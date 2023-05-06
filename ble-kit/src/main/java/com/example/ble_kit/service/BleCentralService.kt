@@ -7,10 +7,10 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
-import android.util.Log
 import com.example.ble_kit.model.BleLifecycleState
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import timber.log.Timber
 import java.lang.Exception
 
 internal class BleCentralService : Service() {
@@ -23,13 +23,13 @@ internal class BleCentralService : Service() {
     private var mBleLifecycleState = BleLifecycleState.Disconnected
 
     override fun onBind(intent: Intent?): IBinder? {
-        Log.d(TAG, "onBind()")
+        Timber.d("onBind()")
         return null
     }
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "onCreate()")
+        Timber.d("onCreate()")
 
         mBleScanHelper = BleScanHelper(this, ::onBleLifecycleStateChange)
 
@@ -43,7 +43,7 @@ internal class BleCentralService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "onDestroy()")
+        Timber.d("onDestroy()")
         bleEndLifecycle()
     }
 
@@ -60,15 +60,15 @@ internal class BleCentralService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "onStartCommand()")
+        Timber.d("onStartCommand()")
         if (intent == null) {
-            Log.e(TAG, "Intent is null")
+            Timber.e("Intent is null")
             return START_NOT_STICKY
         }
 
         val action = intent.action
-        Log.d(TAG, "[STEP] - action: $action")
-        Log.d(TAG, "BLE state: $mBleLifecycleState")
+        Timber.d("[STEP] - action: $action")
+        Timber.d("BLE state: " + mBleLifecycleState)
         when (action) {
             ACTION_BLE_SCAN_START -> {
                 mBleScanHelper.startScan()
@@ -95,7 +95,7 @@ internal class BleCentralService : Service() {
             }
 
             ACTION_GATT_DISCONNECTED -> {
-                Log.d(TAG, "Gatt disconnected")
+                Timber.d("Gatt disconnected")
                 // TODO: need react after Gatt disconnected, consider retry and reconnect
             }
 
@@ -109,8 +109,8 @@ internal class BleCentralService : Service() {
 
             ACTION_GATT_CHAR_INDICATION_SUBSCRIBED -> {
                 // subscription processed, consider connection is ready for use
-                Log.d(TAG, "ACK confirm subscribed service")
-                Log.d(TAG, "----- READY TO USE -----")
+                Timber.d("ACK confirm subscribed service")
+                Timber.d("----- READY TO USE -----")
 
                 // TODO: consider make specific UUIDs for Wifi-direct-info
                 // Read for Wifi name
@@ -125,10 +125,10 @@ internal class BleCentralService : Service() {
                 val data = intent.getByteArrayExtra(EXTRA_CHAR_READ_DATA)
                 data?.let {
                     val strValue = data.toString(Charsets.UTF_8)
-                    Log.d(TAG, "Data got after read: $strValue")
+                    Timber.d("Data got after read: $strValue")
                     _wifiDirectServerNameShareFlow.tryEmit(strValue)
                 } ?: run {
-                    Log.d(TAG, "Invalid data")
+                    Timber.d("Invalid data")
                 }
             }
 
@@ -137,7 +137,7 @@ internal class BleCentralService : Service() {
                 data?.let {
                     mGattManager?.onRequestCharacteristicWrite(data)
                 } ?: run {
-                    Log.e(TAG, "Invalid data")
+                    Timber.e("Invalid data")
                 }
             }
 
@@ -151,16 +151,16 @@ internal class BleCentralService : Service() {
                     BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH -> "invalid length"
                     else -> "error $status"
                 }
-                Log.d(TAG, "Write done: $log")
+                Timber.d("Write done: " + log)
             }
 
             ACTION_RECEIVE_INDICATE -> {
                 val data = intent.getByteArrayExtra(EXTRA_RECEIVE_INDICATE_DATA)
-                Log.d(TAG, "Indicate Data: ${data?.toString(Charsets.UTF_8)}")
+                Timber.d("Indicate Data: " + data?.toString(Charsets.UTF_8))
                 data?.let {
                     _bleIndicationDataShareFlow.tryEmit(data)
                 } ?: run {
-                    Log.e(TAG, "Data is NULL")
+                    Timber.e("Data is NULL")
                 }
             }
         }
@@ -169,7 +169,6 @@ internal class BleCentralService : Service() {
     }
 
     companion object {
-        private const val TAG = "BleCentralService_Jdt"
 
         internal const val ACTION_BLE_SCAN_START = "action.SCAN_START"
         internal const val ACTION_BLE_STOP = "action.BLE_STOP"

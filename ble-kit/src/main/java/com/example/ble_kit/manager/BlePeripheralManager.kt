@@ -5,8 +5,7 @@ import kotlinx.coroutines.flow.SharedFlow
 
 interface BlePeripheralManager {
     val bleLifecycleState: SharedFlow<BleLifecycleState>
-    val bleIndicationData: SharedFlow<ByteArray>
-
+    val bleWriteRequestData: SharedFlow<ByteArray>
     fun start()
     fun stop()
     fun sendData(data: ByteArray)

@@ -16,17 +16,17 @@ import androidx.core.app.ActivityCompat
 import com.example.ble_kit.definition.UUIDTable
 import com.example.ble_kit.model.BleLifecycleState
 import com.example.ble_kit.utils.BluetoothUtility
+import timber.log.Timber
 
 internal class BleScanHelper(
-    private val context: Context,
-    private val bleLifecycleStateChange: (BleLifecycleState) -> Unit
+    private val context: Context, private val bleLifecycleStateChange: (BleLifecycleState) -> Unit
 ) {
     private var isScanning = false
 
 
     @SuppressLint("MissingPermission")
     internal fun startScan() {
-        Log.d(TAG, "startScan()")
+        Timber.d("startScan()")
         if (BluetoothUtility.isBluetoothOn(context)) {
             if (isScanning) {
                 Log.e(TAG, "Already scanning")
@@ -55,8 +55,7 @@ internal class BleScanHelper(
         get() {
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 ActivityCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.BLUETOOTH_SCAN
+                    context, Manifest.permission.BLUETOOTH_SCAN
                 ) == PackageManager.PERMISSION_GRANTED
             } else {
                 TODO("VERSION.SDK_INT < S")
@@ -66,8 +65,7 @@ internal class BleScanHelper(
         get() {
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 ActivityCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.BLUETOOTH_CONNECT
+                    context, Manifest.permission.BLUETOOTH_CONNECT
                 ) == PackageManager.PERMISSION_GRANTED
             } else {
                 TODO("VERSION.SDK_INT < S")
@@ -83,8 +81,7 @@ internal class BleScanHelper(
             }
             val name: String? = result.scanRecord?.deviceName ?: result.device.name
             Log.d(
-                TAG,
-                "Device found name=$name address= ${result.device?.address}"
+                TAG, "Device found name=$name address= ${result.device?.address}"
             )
             safeStopBleScan()
             bleLifecycleStateChange(BleLifecycleState.Connecting)
@@ -123,17 +120,14 @@ internal class BleScanHelper(
         }
     }
 
-    private val mScanFilter = ScanFilter.Builder()
-        .setServiceUuid(ParcelUuid(UUIDTable.GATT_SERVICE_UUID))
-        .build()
+    private val mScanFilter =
+        ScanFilter.Builder().setServiceUuid(ParcelUuid(UUIDTable.GATT_SERVICE_UUID)).build()
 
-    private val scanSettingsSinceM = ScanSettings.Builder()
-        .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
-        .setCallbackType(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
-        .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
-        .setNumOfMatches(ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT)
-        .setReportDelay(0)
-        .build()
+    private val scanSettingsSinceM =
+        ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED)
+            .setCallbackType(ScanSettings.CALLBACK_TYPE_FIRST_MATCH)
+            .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
+            .setNumOfMatches(ScanSettings.MATCH_NUM_ONE_ADVERTISEMENT).setReportDelay(0).build()
 
     companion object {
         private const val TAG = "CentralBLEScanner_Jdt"

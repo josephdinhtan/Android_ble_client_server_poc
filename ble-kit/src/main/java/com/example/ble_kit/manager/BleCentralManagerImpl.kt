@@ -7,7 +7,7 @@ import com.example.ble_kit.service.BleCentralService
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
-class BleCentralManagerImpl constructor(
+class BleCentralManagerImpl (
     private val context: Context
 ) : BleCentralManager {
     override val bleLifecycleState: SharedFlow<BleLifecycleState> =
