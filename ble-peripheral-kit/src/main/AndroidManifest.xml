@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.jdt.ble_peripheral_kit">
+
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="true" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+
+    <application>
+        <service
+            android:name="com.jdt.ble_peripheral_kit.service.BleCentralService"
+            android:enabled="true"
+            android:exported="false">
+        </service>
+        <service
+            android:name="com.jdt.ble_peripheral_kit.service.BlePeripheralService"
+            android:enabled="true"
+            android:exported="false">
+        </service>
+    </application>
+
+</manifest>

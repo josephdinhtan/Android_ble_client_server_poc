@@ -15,9 +15,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
-import com.example.ble_kit.manager.BleCentralManager
-import com.example.ble_kit.manager.BleCentralManagerImpl
-import com.example.ble_kit.utils.BluetoothUtility
+import com.jdt.ble_peripheral_kit.manager.BleCentralManager
+import com.jdt.ble_peripheral_kit.manager.BleCentralManagerImpl
+import com.jdt.ble_peripheral_kit.utils.BluetoothUtility
 import com.example.ble_phone_central.databinding.ActivityMainBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope

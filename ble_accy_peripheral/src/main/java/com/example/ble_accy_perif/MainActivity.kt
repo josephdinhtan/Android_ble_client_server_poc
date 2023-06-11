@@ -14,9 +14,9 @@ import android.view.View
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import com.example.ble_accy_perif.databinding.ActivityMainBinding
-import com.example.ble_kit.manager.BlePeripheralManager
-import com.example.ble_kit.manager.BlePeripheralManagerImpl
-import com.example.ble_kit.utils.BluetoothUtility
+import com.jdt.ble_peripheral_kit.manager.BlePeripheralManager
+import com.jdt.ble_peripheral_kit.manager.BlePeripheralManagerImpl
+import com.jdt.ble_peripheral_kit.utils.BluetoothUtility
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch

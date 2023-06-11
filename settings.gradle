@@ -12,7 +12,8 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "Study BLE Connection"
+rootProject.name = "Android BLE POC"
 include ':ble_accy_peripheral'
 include ':ble_phone_central'
-include ':ble-kit'
+include ':ble-peripheral-kit'
+include ':ble-central-kit'
