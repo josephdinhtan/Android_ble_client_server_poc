@@ -23,7 +23,7 @@ internal class BleAdvertiseHelper(
     internal fun startAdvertising() {
         isAdvertising = true
         BluetoothUtility.getBleAdvertiser(context)
-            .startAdvertising(advertiseSettings, advertiseData, advertiseCallback)
+            .startAdvertising(advertiseSettings, advertiseData, advertiseScanResponse, advertiseCallback)
         bleLifecycleStateChange(BleLifecycleState.Advertising)
     }
 
@@ -59,11 +59,14 @@ internal class BleAdvertiseHelper(
             .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM).setConnectable(true)
             .build()
 
-    private val advertiseData = AdvertiseData.Builder()
-        .setIncludeDeviceName(false) // don't include name, because if name size > 8 bytes, ADVERTISE_FAILED_DATA_TOO_LARGE
-        .addServiceUuid(ParcelUuid(UUIDTable.GATT_SERVICE_UUID))
-        //.addManufacturerData()
+    private val advertiseScanResponse = AdvertiseData.Builder()
+        .setIncludeDeviceName(true)
         .build()
+
+    private val advertiseData = AdvertiseData.Builder()
+        .addServiceUuid(ParcelUuid(UUIDTable.GATT_SERVICE_UUID))
+        .build()
+
     private val advertiseCallback = object : AdvertiseCallback() {
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
             Log.d(TAG, "Advertise start success\n${UUIDTable.GATT_SERVICE_UUID}")

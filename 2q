@@ -1,0 +1,56 @@
+Separate ble-peripharal-lib, ble-central-lib
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch main
+# Your branch is up to date with 'origin/main'.
+#
+# Changes to be committed:
+#	modified:   .idea/.name
+#	modified:   .idea/compiler.xml
+#	modified:   .idea/gradle.xml
+#	modified:   .idea/misc.xml
+#	renamed:    ble-kit/consumer-rules.pro -> .idea/sonarlint/securityhotspotstore/index.pb
+#	renamed:    ble-kit/.gitignore -> ble-central-kit/.gitignore
+#	new file:   ble-central-kit/build.gradle
+#	new file:   ble-central-kit/consumer-rules.pro
+#	renamed:    ble-kit/proguard-rules.pro -> ble-central-kit/proguard-rules.pro
+#	renamed:    ble-kit/src/androidTest/java/com/example/ble_kit/ExampleInstrumentedTest.kt -> ble-central-kit/src/androidTest/java/com/jdt/ble_central_kit/ExampleInstrumentedTest.kt
+#	new file:   ble-central-kit/src/main/AndroidManifest.xml
+#	new file:   ble-central-kit/src/main/java/com/jdt/ble_central_kit/controller/BleCentralData.kt
+#	new file:   ble-central-kit/src/main/java/com/jdt/ble_central_kit/controller/BleScanner.kt
+#	new file:   ble-central-kit/src/main/java/com/jdt/ble_central_kit/controller/GattManager.kt
+#	new file:   ble-central-kit/src/main/java/com/jdt/ble_central_kit/controller/GattRequestDispatcher.kt
+#	new file:   ble-central-kit/src/main/java/com/jdt/ble_central_kit/controller/callback/BleGattCallback.kt
+#	new file:   ble-central-kit/src/main/java/com/jdt/ble_central_kit/controller/callback/BleScanCallback.kt
+#	new file:   ble-central-kit/src/main/java/com/jdt/ble_central_kit/manager/JdtBleManager.kt
+#	new file:   ble-central-kit/src/main/java/com/jdt/ble_central_kit/utils/BluetoothUtility.kt
+#	renamed:    ble-kit/src/test/java/com/example/ble_kit/ExampleUnitTest.kt -> ble-central-kit/src/test/java/com/jdt/ble_central_kit/ExampleUnitTest.kt
+#	deleted:    ble-kit/src/main/java/com/example/ble_kit/definition/FPGACommandTable.kt
+#	new file:   ble-peripheral-kit/.gitignore
+#	renamed:    ble-kit/build.gradle -> ble-peripheral-kit/build.gradle
+#	new file:   ble-peripheral-kit/consumer-rules.pro
+#	new file:   ble-peripheral-kit/proguard-rules.pro
+#	new file:   ble-peripheral-kit/src/androidTest/java/com/example/ble_peripheral_kit/ExampleInstrumentedTest.kt
+#	renamed:    ble-kit/src/main/AndroidManifest.xml -> ble-peripheral-kit/src/main/AndroidManifest.xml
+#	new file:   ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/definition/FPGACommandTable.kt
+#	renamed:    ble-kit/src/main/java/com/example/ble_kit/definition/UUIDTable.kt -> ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/definition/UUIDTable.kt
+#	renamed:    ble-kit/src/main/java/com/example/ble_kit/manager/BleCentralManager.kt -> ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/manager/BleCentralManager.kt
+#	renamed:    ble-kit/src/main/java/com/example/ble_kit/manager/BleCentralManagerImpl.kt -> ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/manager/BleCentralManagerImpl.kt
+#	renamed:    ble-kit/src/main/java/com/example/ble_kit/manager/BlePeripheralManager.kt -> ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/manager/BlePeripheralManager.kt
+#	renamed:    ble-kit/src/main/java/com/example/ble_kit/manager/BlePeripheralManagerImpl.kt -> ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/manager/BlePeripheralManagerImpl.kt
+#	renamed:    ble-kit/src/main/java/com/example/ble_kit/model/BleLifecycleState.kt -> ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/model/BleLifecycleState.kt
+#	renamed:    ble-kit/src/main/java/com/example/ble_kit/service/BleAdvertiseHelper.kt -> ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/service/BleAdvertiseHelper.kt
+#	renamed:    ble-kit/src/main/java/com/example/ble_kit/service/BleCentralService.kt -> ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/service/BleCentralService.kt
+#	renamed:    ble-kit/src/main/java/com/example/ble_kit/service/BlePeripheralService.kt -> ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/service/BlePeripheralService.kt
+#	renamed:    ble-kit/src/main/java/com/example/ble_kit/service/BleScanHelper.kt -> ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/service/BleScanHelper.kt
+#	renamed:    ble-kit/src/main/java/com/example/ble_kit/service/GattManager.kt -> ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/service/GattManager.kt
+#	renamed:    ble-kit/src/main/java/com/example/ble_kit/service/GattServerManager.kt -> ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/service/GattServerManager.kt
+#	renamed:    ble-kit/src/main/java/com/example/ble_kit/utils/BluetoothUtility.kt -> ble-peripheral-kit/src/main/java/com/jdt/ble_peripheral_kit/utils/BluetoothUtility.kt
+#	new file:   ble-peripheral-kit/src/test/java/com/example/ble_peripheral_kit/ExampleUnitTest.kt
+#	modified:   ble_accy_peripheral/build.gradle
+#	modified:   ble_accy_peripheral/src/main/java/com/example/ble_accy_perif/MainActivity.kt
+#	modified:   ble_phone_central/build.gradle
+#	modified:   ble_phone_central/src/main/java/com/example/ble_phone_central/MainActivity.kt
+#	modified:   settings.gradle
+#

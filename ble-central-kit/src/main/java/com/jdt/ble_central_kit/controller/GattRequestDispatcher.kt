@@ -41,6 +41,7 @@ class GattRequestDispatcher(
         return result
     }
 
+    @Suppress("DEPRECATION")
     internal fun addWriteDescriptorRequest(
         cccDescriptor: BluetoothGattDescriptor, value: ByteArray
     ): Boolean {

@@ -14,6 +14,7 @@ import android.content.IntentFilter
 import android.os.Build
 import com.jdt.ble_central_kit.controller.BleCentralData.*
 import com.jdt.ble_central_kit.controller.callback.BleGattCallback
+import com.jdt.ble_central_kit.controller.callback.BleGattDescriptorValue
 import timber.log.Timber
 import java.util.UUID
 
@@ -26,7 +27,6 @@ internal class GattManager(
     private var mConnectionState = BluetoothAdapter.STATE_DISCONNECTED
     private var mBluetoothGatt: BluetoothGatt? = null
 
-    private val mSubscribeDataQueue = mutableListOf<RequestSubscribeData>()
     private var mGattRequestDispatcher: GattRequestDispatcher? = null
 
     private val bluetoothGattCallback = object : BluetoothGattCallback() {
@@ -46,11 +46,13 @@ internal class GattManager(
                 if (gatt.device.bondState == BluetoothDevice.BOND_NONE || gatt.device.bondState == BluetoothDevice.BOND_BONDED) {
                     when (newState) {
                         BluetoothProfile.STATE_CONNECTED -> {
+                            bleGattCallback.onGattConnected()
                             mGattRequestDispatcher?.addDiscoverServicesRequest()
                         }
 
                         BluetoothProfile.STATE_DISCONNECTED -> {
                             Timber.d("Disconnected from $deviceAddress")
+                            bleGattCallback.onGattDisconnected()
                             closeGattAndcleanUp()
                         }
                     }
@@ -76,15 +78,7 @@ internal class GattManager(
                 gatt.disconnect()
                 return
             }
-
-            /*
-            gatt.getService(UUIDTable.GATT_GENERAL_SERVICE_UUID) ?: run {
-                Timber.d(
-                    "ERROR: Service not found ${UUIDTable.GATT_GENERAL_SERVICE_UUID.toString()}, disconnecting"
-                )
-                gatt.disconnect()
-                return
-            }*/
+            bleGattCallback.onServicesDiscovered(gatt.services)
             mGattRequestDispatcher?.completedRequest()
         }
 
@@ -93,17 +87,9 @@ internal class GattManager(
         override fun onCharacteristicRead(
             gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int
         ) {
-            when (status) {
-                BluetoothGatt.GATT_SUCCESS -> {
-                    onCharacteristicReadResult(
-                        characteristic, characteristic.value, status
-                    )
-                }
-
-                BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION -> {
-                    Timber.e("ERROR: GATT_INSUFFICIENT_AUTHENTICATION")
-                }
-            }
+            onCharacteristicReadResult(
+                characteristic, characteristic.value, status
+            )
             // TODO: consider do retry if got error
             mGattRequestDispatcher?.completedRequest()
         }
@@ -123,10 +109,25 @@ internal class GattManager(
             gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int
         ) {
             val log: String = "onCharacteristicWrite " + when (status) {
-                BluetoothGatt.GATT_SUCCESS -> "OK"
-                BluetoothGatt.GATT_WRITE_NOT_PERMITTED -> "not allowed"
-                BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH -> "invalid length"
-                else -> "error $status"
+                BluetoothGatt.GATT_SUCCESS -> {
+                    bleGattCallback.onCharacteristicWrite(true)
+                    "GATT_SUCCESS"
+                }
+
+                BluetoothGatt.GATT_WRITE_NOT_PERMITTED -> {
+                    bleGattCallback.onCharacteristicWrite(false)
+                    "GATT_WRITE_NOT_PERMITTED"
+                }
+
+                BluetoothGatt.GATT_INVALID_ATTRIBUTE_LENGTH -> {
+                    bleGattCallback.onCharacteristicWrite(false)
+                    "GATT_INVALID_ATTRIBUTE_LENGTH"
+                }
+
+                else -> {
+                    bleGattCallback.onCharacteristicWrite(false)
+                    "UNKNOW $status"
+                }
             }
             Timber.d(log)
             // TODO: consider do retry if got error
@@ -153,37 +154,34 @@ internal class GattManager(
             status: Int,
             value: ByteArray
         ) {
-            super.onDescriptorRead(gatt, descriptor, status, value)
+            onDescriptorReadResult(gatt, descriptor, status, value)
         }
 
+        @Suppress("DEPRECATION")
         @Deprecated("Deprecated in Java")
         override fun onDescriptorRead(
             gatt: BluetoothGatt?,
             descriptor: BluetoothGattDescriptor?,
             status: Int
         ) {
-            super.onDescriptorRead(gatt, descriptor, status)
+            gatt?.let {
+                descriptor?.let {
+                    onDescriptorReadResult(gatt, descriptor, status, descriptor.value)
+                }
+            }
         }
 
         override fun onDescriptorWrite(
             gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int
         ) {
-            if (mSubscribeDataQueue.isNotEmpty()) {
-                val subscribeData = mSubscribeDataQueue.first()
-                subscribeToCharacteristicIndication(
-                    subscribeData.serviceUUID, subscribeData.charUUID, subscribeData.desUuid
-                )
-                mSubscribeDataQueue.removeFirst()
-            } else {
-                //bleLifecycleStateChange(BleCentralLifecycleState.AllSubscribed)
-            }
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Timber.d("onDescriptorWrite: charUUID: ${descriptor.characteristic.uuid} descriptor GATT_SUCCESS")
-                //stateMachine.tryEmit(BleCentralStateMachine.SubscribedSuccess(descriptor.characteristic.uuid))
+                bleGattCallback.onDescriptorWriteResult(true)
             } else {
+                // TODO: consider do retry if got error
                 Timber.e("ERROR: onDescriptorWrite status=" + status + " uuid=" + descriptor.uuid + " char=" + descriptor.characteristic.uuid)
+                bleGattCallback.onDescriptorWriteResult(false)
             }
-            // TODO: consider do retry if got error
             mGattRequestDispatcher?.completedRequest()
         }
     }
@@ -193,11 +191,7 @@ internal class GattManager(
     ) {
         val strValue = receiveData.toString(Charsets.UTF_8)
         Timber.d("onCharacteristicChanged value=" + "\"" + strValue + "\"")
-/*        stateMachine.tryEmit(
-            BleCentralStateMachine.IndicationCome(
-                characteristic.service.uuid, characteristic.uuid, receiveData
-            )
-        )*/
+        bleGattCallback.onCharacteristicIndication(characteristic, receiveData)
     }
 
     private fun onCharacteristicReadResult(
@@ -210,11 +204,32 @@ internal class GattManager(
             else -> "error $status"
         }
         Timber.d("onCharacteristicRead " + log)
-/*        stateMachine.tryEmit(
-            BleCentralStateMachine.ReadDone(
-                characteristic.service.uuid, characteristic.uuid, receiveData
-            )
-        )*/
+        bleGattCallback.onCharacteristicReadResult(characteristic, receiveData)
+    }
+
+    private fun onDescriptorReadResult(
+        gatt: BluetoothGatt,
+        descriptor: BluetoothGattDescriptor,
+        status: Int,
+        value: ByteArray
+    ) {
+        val responseValue =
+            if (value.contentEquals(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE)) {
+                BleGattDescriptorValue.ENABLE_INDICATION_VALUE
+            } else if (value.contentEquals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) {
+                BleGattDescriptorValue.ENABLE_NOTIFICATION_VALUE
+            } else {
+                BleGattDescriptorValue.DISABLE_NOTIFICATION_VALUE
+            }
+        when (status) {
+            BluetoothGatt.GATT_SUCCESS -> {
+                bleGattCallback.onDescriptorReadResult(descriptor, responseValue, true)
+            }
+
+            else -> {
+                bleGattCallback.onDescriptorReadResult(descriptor, responseValue, false)
+            }
+        }
     }
 
     val bondStateReceiver by lazy {
@@ -266,7 +281,7 @@ internal class GattManager(
                         BluetoothDevice.BOND_BONDED -> {
                             Timber.e("bondStateReceiver bondstate: BOND_BONDED")
                             if (mBluetoothGatt?.services!!.isEmpty()) {
-                                Timber.d("addDiscoverServicesRequest")
+                                Timber.d("addDiscoverServicesRequest after device BONDED")
                                 mGattRequestDispatcher?.addDiscoverServicesRequest()
                             }
                         }
@@ -282,7 +297,6 @@ internal class GattManager(
                     }
                 }
             }
-
         }
     }
 
@@ -291,6 +305,7 @@ internal class GattManager(
         val filter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
         context.registerReceiver(bondStateReceiver, filter)
 
+        bleGattCallback.onGattConnecting()
         mBluetoothGatt = device.connectGatt(
             context, false, bluetoothGattCallback, BluetoothDevice.TRANSPORT_LE
         )
@@ -302,16 +317,12 @@ internal class GattManager(
     internal fun subscribeToCharacteristicIndication(
         subscribedData: List<RequestSubscribeData>
     ) {
-        mSubscribeDataQueue.clear()
-        mSubscribeDataQueue.addAll(subscribedData)
-        if (mSubscribeDataQueue.isNotEmpty()) {
-            val subscribeData = mSubscribeDataQueue.first()
+        subscribedData.forEach { requestSubscribeData ->
             subscribeToCharacteristicIndication(
-                subscribeData.serviceUUID, subscribeData.charUUID, subscribeData.desUuid
+                requestSubscribeData.serviceUUID,
+                requestSubscribeData.charUUID,
+                requestSubscribeData.desUuid
             )
-            mSubscribeDataQueue.removeFirst()
-        } else {
-//            bleLifecycleStateChange(BleCentralLifecycleState.AllSubscribed)
         }
     }
 
@@ -327,7 +338,7 @@ internal class GattManager(
                 ) == false
             ) {
                 Timber.e(
-                    "ERROR: setNotification(true) failed for ${characteristicForIndicate.uuid}"
+                    "ERROR: setNotification failed for ${characteristicForIndicate.uuid}"
                 )
                 return
             }

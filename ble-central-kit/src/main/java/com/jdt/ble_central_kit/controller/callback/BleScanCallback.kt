@@ -1,8 +1,10 @@
 package com.jdt.ble_central_kit.controller.callback
 
-import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
 
-abstract class BleScanCallback : ScanCallback() {
-    abstract fun onScanStarted(success: Boolean)
-    abstract fun onScanFinished()
+interface BleScanCallback {
+    fun onScanStarted(success: Boolean)
+    fun onScanFailed()
+    fun onScanResult(result: ScanResult)
+    fun onScanFinished()
 }
