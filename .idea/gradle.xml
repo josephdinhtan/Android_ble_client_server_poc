@@ -11,8 +11,8 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/ble-central-kit" />
-            <option value="$PROJECT_DIR$/ble-peripheral-kit" />
+            <option value="$PROJECT_DIR$/ble-central-lib" />
+            <option value="$PROJECT_DIR$/ble-peripheral-lib" />
             <option value="$PROJECT_DIR$/ble_accy_peripheral" />
             <option value="$PROJECT_DIR$/ble_phone_central" />
           </set>

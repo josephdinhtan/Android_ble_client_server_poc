@@ -15,5 +15,5 @@ dependencyResolutionManagement {
 rootProject.name = "Android BLE POC"
 include ':ble_accy_peripheral'
 include ':ble_phone_central'
-include ':ble-peripheral-kit'
-include ':ble-central-kit'
+include ':ble-peripheral-lib'
+include ':ble-central-lib'
